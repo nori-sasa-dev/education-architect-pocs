@@ -1,4 +1,6 @@
-# セッション記録・個人メモ
+# 個人情報・設定ファイル
+CLAUDE.md
+.claude/
 planning/sessions/
 planning/validation/
 

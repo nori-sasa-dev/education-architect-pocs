@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎮 ゲームセンター</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100svh;
+      background: linear-gradient(-45deg, #FF6EC7, #FF9D00, #FFE700, #7BFF7B, #00C5FF, #B44FFF);
+      background-size: 400% 400%;
+      animation: bgShift 8s ease infinite;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 24px;
+      font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
+      overflow: hidden;
+    }
+
+    @keyframes bgShift {
+      0%   { background-position: 0%   50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0%   50%; }
+    }
+
+    /* 浮かぶ絵文字 */
+    .fe {
+      position: fixed;
+      pointer-events: none;
+      animation: floatUp linear infinite;
+      opacity: 0.75;
+      z-index: 0;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+      8%   { opacity: 0.75; }
+      92%  { opacity: 0.75; }
+      100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+    }
+
+    h1 {
+      font-size: clamp(28px, 7vw, 50px);
+      color: #fff;
+      text-align: center;
+      font-weight: bold;
+      text-shadow: 3px 3px 0 rgba(0,0,0,0.18), 0 0 24px rgba(255,255,255,0.7);
+      letter-spacing: 0.06em;
+      position: relative; z-index: 1;
+    }
+
+    .games {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      width: 100%;
+      max-width: 700px;
+      position: relative; z-index: 1;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      border-radius: 24px;
+      padding: 28px 24px;
+      width: clamp(230px, 42vw, 290px);
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+    }
+    .card:hover  { transform: translateY(-8px) scale(1.03); }
+    .card:active { transform: scale(0.97); }
+
+    .card.pink {
+      background: linear-gradient(145deg, #ff6b9d, #ff1744);
+      box-shadow: 0 10px 36px #ff174460, 0 0 0 3px rgba(255,255,255,0.45);
+    }
+    .card.gold {
+      background: linear-gradient(145deg, #ffe259, #ffa751);
+      box-shadow: 0 10px 36px #ffa75160, 0 0 0 3px rgba(255,255,255,0.45);
+    }
+
+    .icon {
+      font-size: clamp(56px, 13vw, 76px);
+      line-height: 1;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
+      animation: bounce 1.8s ease-in-out infinite alternate;
+    }
+    .card:nth-child(2) .icon { animation-delay: -0.9s; }
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-9px); }
+    }
+
+    .card-title {
+      font-size: clamp(18px, 4.5vw, 24px);
+      font-weight: bold;
+      color: #fff;
+      text-align: center;
+      text-shadow: 1px 2px 0 rgba(0,0,0,0.2);
+    }
+
+    .card-desc {
+      font-size: clamp(11px, 2.8vw, 14px);
+      color: rgba(255,255,255,0.9);
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    .play-btn {
+      margin-top: 6px;
+      padding: 10px 30px;
+      border-radius: 50px;
+      font-size: clamp(14px, 3.5vw, 17px);
+      font-weight: bold;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      pointer-events: none;
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.12);
+    }
+    .card.pink .play-btn { color: #e91e63; }
+    .card.gold .play-btn { color: #e65100; }
+
+    footer {
+      color: rgba(255,255,255,0.8);
+      font-size: 13px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      position: relative; z-index: 1;
+    }
+
+    #music-btn {
+      position: fixed;
+      top: 14px; right: 14px;
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      border: 2px solid rgba(255,255,255,0.7);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 10;
+      transition: background 0.2s;
+    }
+    #music-btn:hover { background: rgba(255,255,255,0.55); }
+  </style>
+</head>
+<body>
+
+  <!-- 浮かぶ絵文字 -->
+  <div class="fe" style="left:4%;font-size:26px;animation-duration:6.2s;animation-delay:0s">🍓</div>
+  <div class="fe" style="left:16%;font-size:34px;animation-duration:8.0s;animation-delay:-2.1s">⭐</div>
+  <div class="fe" style="left:30%;font-size:22px;animation-duration:7.1s;animation-delay:-4.3s">🚙</div>
+  <div class="fe" style="left:47%;font-size:30px;animation-duration:9.2s;animation-delay:-1.5s">🌟</div>
+  <div class="fe" style="left:62%;font-size:26px;animation-duration:6.8s;animation-delay:-3.0s">✨</div>
+  <div class="fe" style="left:76%;font-size:34px;animation-duration:7.6s;animation-delay:-5.2s">🍓</div>
+  <div class="fe" style="left:91%;font-size:22px;animation-duration:8.4s;animation-delay:-1.8s">🚙</div>
+
+  <button id="music-btn" title="音楽オン/オフ">🎵</button>
+
+  <h1>🎮 ゲームセンター 🎮</h1>
+
+  <div class="games">
+
+    <a class="card pink" href="papa_ichigo/index.html">
+      <div class="icon">🍓</div>
+      <div class="card-title">パパいちご</div>
+      <div class="card-desc">パパ鬼につかまらないで！<br>いちごを集めてハイスコアを目指せ！</div>
+      <button class="play-btn">あそぶ！</button>
+    </a>
+
+    <a class="card gold" href="kuruma_tetris/index.html">
+      <div class="icon">🚙</div>
+      <div class="card-title">ハマーテトリス！</div>
+      <div class="card-desc">ハマーを積み上げろ！<br>カラフルなテトリスゲーム</div>
+      <button class="play-btn">あそぶ！</button>
+    </a>
+
+  </div>
+
+  <footer>PC / スマホ どちらでも遊べます 🎈</footer>
+
+  <script>
+  // ===== BGM =====
+  let ac, masterGain, bgmRunning = false, bgmTimer;
+
+  function initAC() {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = ac.createGain();
+    masterGain.gain.value = 0;
+    masterGain.connect(ac.destination);
+  }
+
+  function bgmLoop() {
+    if (!bgmRunning) return;
+    const E = (60 / 150) / 2; // 8分音符
+    const now = ac.currentTime;
+
+    // メロディ (スクエア波 / G メジャー)
+    const MEL = [
+      [784, E], [880, E], [988, E], [880, E],
+      [784, E], [659, E], [698, E], [784, E],
+      [880, E], [988, E],[1047, E], [988, E],
+      [880, E], [784, E], [784, E*2],
+      [988, E], [880, E], [784, E], [698, E],
+      [659, E], [587, E], [587, E*2],
+      [659, E], [698, E], [784, E], [880, E],
+      [784, E*1.5], [659, E*0.5], [784, E*2],
+    ];
+    let t = now;
+    for (const [f, d] of MEL) { sqNote(f, t, d*0.78, 0.09); t += d; }
+    const loopDur = t - now;
+
+    // ベース (トライアングル波)
+    const BAS = [
+      [196, E*4],[247, E*2],[262, E*2],
+      [196, E*4],[247, E*2],[262, E*2],
+      [220, E*4],[277, E*2],[262, E*2],
+      [196, E*8],
+    ];
+    let tb = now;
+    for (const [f, d] of BAS) { triNote(f, tb, d*0.88, 0.12); tb += d; }
+
+    // ドラム
+    const beats = Math.ceil(loopDur / E);
+    for (let i = 0; i < beats; i++) {
+      const bt = now + i * E, pat = i % 8;
+      if (pat === 0 || pat === 4) kick(bt, 0.28);
+      if (pat === 2 || pat === 6) snare(bt, 0.13);
+      hihat(bt, pat % 2 === 0 ? 0.045 : 0.02);
+    }
+
+    bgmTimer = setTimeout(bgmLoop, (loopDur - 0.04) * 1000);
+  }
+
+  function sqNote(f, t, d, v) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.004);
+    g.gain.setValueAtTime(v * 0.7, t + d * 0.5);
+    g.gain.linearRampToValueAtTime(0, t + d);
+    o.connect(g); g.connect(masterGain);
+    o.start(t); o.stop(t + d + 0.01);
+  }
+
+  function triNote(f, t, d, v) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.006);
+    g.gain.linearRampToValueAtTime(0, t + d);
+    o.connect(g); g.connect(masterGain);
+    o.start(t); o.stop(t + d + 0.01);
+  }
+
+  function kick(t, v) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(42, t + 0.08);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.15);
+  }
+
+  function noise(dur) {
+    const len = Math.floor(ac.sampleRate * dur);
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const s = ac.createBufferSource(); s.buffer = buf; return s;
+  }
+
+  function snare(t, v) {
+    const n = noise(0.07), f = ac.createBiquadFilter(), g = ac.createGain();
+    f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.6;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    n.connect(f); f.connect(g); g.connect(masterGain); n.start(t); n.stop(t + 0.12);
+  }
+
+  function hihat(t, v) {
+    const n = noise(0.025), f = ac.createBiquadFilter(), g = ac.createGain();
+    f.type = 'highpass'; f.frequency.value = 7000;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    n.connect(f); f.connect(g); g.connect(masterGain); n.start(t); n.stop(t + 0.04);
+  }
+
+  function startBGM() {
+    if (bgmRunning) return;
+    if (!ac) initAC();
+    bgmRunning = true;
+    masterGain.gain.setTargetAtTime(0.45, ac.currentTime, 0.4);
+    bgmLoop();
+  }
+
+  function stopBGM() {
+    bgmRunning = false;
+    clearTimeout(bgmTimer);
+    if (masterGain) masterGain.gain.setTargetAtTime(0, ac.currentTime, 0.3);
+  }
+
+  // 音楽ボタン
+  let musicOn = false;
+  const musicBtn = document.getElementById('music-btn');
+  musicBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (musicOn) { stopBGM(); musicOn = false; musicBtn.textContent = '🔇'; }
+    else         { startBGM(); musicOn = true;  musicBtn.textContent = '🎵'; }
+  });
+
+  // 初回タッチ/クリックで自動スタート
+  let autoStarted = false;
+  function autoStart() {
+    if (autoStarted) return;
+    autoStarted = true;
+    musicOn = true;
+    musicBtn.textContent = '🎵';
+    startBGM();
+  }
+  document.addEventListener('click',      autoStart, { once: true });
+  document.addEventListener('touchstart', autoStart, { once: true });
+  </script>
+
+</body>
+</html>

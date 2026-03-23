@@ -1,0 +1,44 @@
+# 仮想環境
+venv/
+.venv/
+env/
+.env/
+
+# 環境変数（APIキー等）—絶対にコミットしない
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Streamlit
+.streamlit/secrets.toml
+
+# DB
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ログ・一時ファイル
+*.log
+*.tmp

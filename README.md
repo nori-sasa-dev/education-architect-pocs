@@ -1,6 +1,6 @@
 # Education Architect POCs
 
-**AI × 教育** の2軸でPOCアプリを開発するポートフォリオ。
+**教育 × コーチング × AI** の交差点でPOCアプリを開発するポートフォリオ。
 
 「Education Architect（教育アーキテクト）」として独立することを目指し、
 アイデアの検証・技術習得・ポートフォリオ構築を目的として開発しています。
@@ -53,5 +53,8 @@ streamlit run app.py
 
 ## 作者
 
-**Education Architect を目指して開発中。**
-AI × 教育の掛け合わせで、学びの体験を再設計することがビジョンです。
+**Nori Sasagawa** — Education Architect を目指して開発中。
+
+教育 × コーチング × AI の掛け合わせで、学びの体験を再設計することがビジョンです。
+
+- GitHub: [@nori-sasa-dev](https://github.com/nori-sasa-dev)

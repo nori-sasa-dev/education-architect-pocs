@@ -1,4 +1,7 @@
 import json
+import re
+import time
+from typing import Generator
 
 SYSTEM_PROMPT = """あなたは「自己探索コーチ」です。
 ユーザーが自分の経験を振り返り、価値観・強み・方向性を発見する対話を支援します。
@@ -107,6 +110,14 @@ DEMO_RESPONSES = [
 ```"""
 ]
 
+# フェーズ定義: {フェーズ番号: (フェーズ名, 説明)}
+PHASE_NAMES = {
+    1: ("安心感の構築", "まずはリラックスして話しましょう"),
+    2: ("経験の深掘り", "大切な経験を一緒に振り返ります"),
+    3: ("価値観・強みの発見", "あなたの軸が見えてきます"),
+    4: ("方向性の統合", "これまでの対話をまとめます"),
+}
+
 
 class InterviewAgent:
     def __init__(self, api_key=None):
@@ -120,26 +131,46 @@ class InterviewAgent:
     def is_demo_mode(self):
         return self.client is None
 
-    def respond(self, messages: list[dict], turn: int) -> str:
-        if self.is_demo_mode:
-            return self._demo_respond(messages, turn)
-        return self._api_respond(messages)
+    @staticmethod
+    def get_phase(turn: int) -> int:
+        """ターン番号からフェーズ番号（1〜4）を返す"""
+        if turn <= 2:
+            return 1
+        elif turn <= 5:
+            return 2
+        elif turn <= 7:
+            return 3
+        else:
+            return 4
 
-    def _api_respond(self, messages: list[dict]) -> str:
-        # 初回挨拶時（メッセージ空）はダミーメッセージを送る
+    def stream_respond(self, messages: list[dict], turn: int) -> Generator[str, None, None]:
+        """AIの応答をストリーミングで返すジェネレーター"""
+        if self.is_demo_mode:
+            yield from self._demo_stream(turn)
+        else:
+            yield from self._api_stream(messages)
+
+    def _api_stream(self, messages: list[dict]) -> Generator[str, None, None]:
+        """Anthropic APIのストリーミングレスポンス"""
         if not messages:
             messages = [{"role": "user", "content": "こんにちは。自己探索を始めたいです。"}]
-        response = self.client.messages.create(
+        with self.client.messages.stream(
             model="claude-sonnet-4-6",
             max_tokens=2048,
             system=SYSTEM_PROMPT,
             messages=messages,
-        )
-        return response.content[0].text
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
 
-    def _demo_respond(self, messages: list[dict], turn: int) -> str:
+    def _demo_stream(self, turn: int) -> Generator[str, None, None]:
+        """デモモード：チャンク単位でストリーミングを模倣する"""
         idx = min(turn, len(DEMO_RESPONSES) - 1)
-        return DEMO_RESPONSES[idx]
+        response = DEMO_RESPONSES[idx]
+        chunk_size = 6
+        for i in range(0, len(response), chunk_size):
+            yield response[i:i + chunk_size]
+            time.sleep(0.018)
 
     def extract_discovery(self, text: str) -> dict | None:
         """自己探索サマリーを抽出する"""
@@ -152,3 +183,34 @@ class InterviewAgent:
             return json.loads(json_str)
         except (ValueError, json.JSONDecodeError):
             return None
+
+    def extract_partial_insights(self, messages: list[dict]) -> dict:
+        """AI応答から対話中の価値観・強みのヒントをリアルタイム抽出する"""
+        insights = {"values": [], "strengths": []}
+        ai_texts = [m["content"] for m in messages if m["role"] == "assistant"]
+        combined = "\n".join(ai_texts)
+
+        value_patterns = [
+            r'「([^」\n]{2,20})」を大切に',
+            r'([^\s、。\n]{2,15})を大切にされている',
+            r'([^\s、。\n]{2,15})という価値観',
+            r'\*\*([^\*\n]{2,25})\*\*',
+        ]
+        strength_patterns = [
+            r'([^\s、。\n]{2,15})という強み',
+            r'([^\s、。\n]{2,10}する)力',
+            r'([^\s、。\n]{2,10}できる)力',
+            r'([^\s、。\n]{2,10}を引き出す)力',
+        ]
+
+        for pattern in value_patterns:
+            for m in re.findall(pattern, combined):
+                if m and m not in insights["values"] and len(insights["values"]) < 5:
+                    insights["values"].append(m)
+
+        for pattern in strength_patterns:
+            for m in re.findall(pattern, combined):
+                if m and m not in insights["strengths"] and len(insights["strengths"]) < 5:
+                    insights["strengths"].append(m)
+
+        return insights

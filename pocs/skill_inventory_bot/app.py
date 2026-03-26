@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
-from agents.interview_agent import InterviewAgent
+from agents.interview_agent import InterviewAgent, PHASE_NAMES
 from utils.export import discovery_to_json, discovery_to_csv
 
 load_dotenv()
@@ -21,6 +21,10 @@ if "discovery" not in st.session_state:
     st.session_state.discovery = None
 if "interview_complete" not in st.session_state:
     st.session_state.interview_complete = False
+if "current_phase" not in st.session_state:
+    st.session_state.current_phase = 1
+if "partial_insights" not in st.session_state:
+    st.session_state.partial_insights = {"values": [], "strengths": []}
 
 # --- Agent Setup ---
 api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -40,6 +44,33 @@ with st.sidebar:
 
     st.divider()
 
+    # --- 進捗インジケーター ---
+    if not st.session_state.interview_complete:
+        phase = InterviewAgent.get_phase(st.session_state.turn)
+        phase_name, phase_desc = PHASE_NAMES[phase]
+        progress = min(st.session_state.turn / 8, 1.0)
+
+        st.subheader("対話の進捗")
+        st.progress(progress)
+        st.caption(f"Phase {phase} / 4　　ターン {st.session_state.turn} / 8")
+        st.markdown(f"**{phase_name}**")
+        st.caption(phase_desc)
+
+        # --- リアルタイムの気づき（E） ---
+        partial = st.session_state.partial_insights
+        if partial["values"] or partial["strengths"]:
+            st.divider()
+            st.subheader("見えてきたこと")
+            if partial["values"]:
+                st.write("大切にしていること：")
+                for v in partial["values"]:
+                    st.write(f"  - {v}")
+            if partial["strengths"]:
+                st.write("強み：")
+                for s in partial["strengths"]:
+                    st.write(f"  - {s}")
+
+    # --- 完了後：自己探索サマリー ---
     if st.session_state.discovery:
         st.subheader("自己探索サマリー")
 
@@ -50,21 +81,18 @@ with st.sidebar:
         if discovery.get("current_situation"):
             st.write(f"**現在の状況:** {discovery['current_situation']}")
 
-        # 価値観
         values = discovery.get("values", [])
         if values:
             st.write("**大切にしている価値観:**")
             for v in values:
                 st.write(f"  - {v}")
 
-        # 強み
         strengths = discovery.get("strengths", [])
         if strengths:
             st.write("**強み:**")
             for s in strengths:
                 st.write(f"  - {s}")
 
-        # スキル
         skills = discovery.get("skills", {})
         if skills:
             st.write("**スキル:**")
@@ -74,13 +102,11 @@ with st.sidebar:
                     for item in items:
                         st.write(f"  - [{label}] {item}")
 
-        # 方向性
         if discovery.get("direction"):
             st.divider()
             st.write("**方向性:**")
             st.info(discovery["direction"])
 
-        # 自己探索サマリー
         if discovery.get("discovery_summary"):
             st.divider()
             st.write("**あなたを一言で:**")
@@ -112,25 +138,34 @@ with st.sidebar:
         st.session_state.turn = 0
         st.session_state.discovery = None
         st.session_state.interview_complete = False
+        st.session_state.current_phase = 1
+        st.session_state.partial_insights = {"values": [], "strengths": []}
         st.rerun()
 
 # --- Main Chat Area ---
 st.header("キャリア探索AI")
 st.caption("AIとの対話を通じて、あなたの価値観・強み・方向性を発見します")
 
-# Display existing messages
+# --- メッセージ履歴の表示 ---
 for msg in st.session_state.messages:
+    # フェーズ移行マーカーの表示（D）
+    if msg.get("role") == "system" and msg.get("type") == "phase_transition":
+        phase_num = msg["phase"]
+        phase_name, phase_desc = PHASE_NAMES[phase_num]
+        st.markdown("---")
+        st.caption(f"✦ Phase {phase_num} / 4　{phase_name} ─ {phase_desc}")
+        continue
+
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Generate initial greeting
+# --- 初回挨拶（ストリーミング）---
 if not st.session_state.messages:
     with st.chat_message("assistant"):
-        greeting = agent.respond([], st.session_state.turn)
-        st.markdown(greeting)
+        greeting = st.write_stream(agent.stream_respond([], 0))
     st.session_state.messages.append({"role": "assistant", "content": greeting})
 
-# Chat input
+# --- チャット入力 ---
 if not st.session_state.interview_complete:
     if user_input := st.chat_input("思いつくままに、自由にお話しください..."):
         # ユーザーメッセージを追加
@@ -138,27 +173,52 @@ if not st.session_state.interview_complete:
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        # エージェントの応答を生成
+        # フェーズ移行チェック（D）
         st.session_state.turn += 1
+        new_phase = InterviewAgent.get_phase(st.session_state.turn)
+        if new_phase != st.session_state.current_phase:
+            phase_name, phase_desc = PHASE_NAMES[new_phase]
+            # チャット履歴にフェーズ移行マーカーを追加
+            st.session_state.messages.append({
+                "role": "system",
+                "type": "phase_transition",
+                "phase": new_phase,
+                "phase_name": phase_name,
+            })
+            st.markdown("---")
+            st.caption(f"✦ Phase {new_phase} / 4　{phase_name} ─ {phase_desc}")
+            st.session_state.current_phase = new_phase
+
+        # APIに渡すメッセージ（user/assistantのみ）
         api_messages = [
             {"role": m["role"], "content": m["content"]}
             for m in st.session_state.messages
+            if m["role"] in ("user", "assistant")
         ]
-        response = agent.respond(api_messages, st.session_state.turn)
+
+        # AIの応答をストリーミング表示（A・C）
+        with st.chat_message("assistant"):
+            full_response = st.write_stream(
+                agent.stream_respond(api_messages, st.session_state.turn)
+            )
 
         # 自己探索サマリーの抽出チェック
-        discovery = agent.extract_discovery(response)
+        discovery = agent.extract_discovery(full_response)
         if discovery:
             st.session_state.discovery = discovery
             st.session_state.interview_complete = True
-            # JSON部分を表示から除外
-            display_text = response.split("[DISCOVERY_COMPLETED]")[0].strip()
+            # JSONブロックを除いたテキストをメッセージ履歴に保存
+            display_text = full_response.split("[DISCOVERY_COMPLETED]")[0].strip()
+            st.session_state.messages.append({"role": "assistant", "content": display_text})
         else:
-            display_text = response
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        with st.chat_message("assistant"):
-            st.markdown(display_text)
+        # サイドバーのリアルタイム更新（E）
+        all_messages = [
+            m for m in st.session_state.messages
+            if m["role"] in ("user", "assistant")
+        ]
+        st.session_state.partial_insights = agent.extract_partial_insights(all_messages)
 
         if st.session_state.interview_complete:
             st.success("自己探索が完了しました！サイドバーであなたの探索結果を確認できます。")

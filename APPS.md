@@ -5,7 +5,7 @@
 
 | #   | アプリ名               | URL                                            | 状態                | ディレクトリ                           |
 | --- | ------------------ | ---------------------------------------------- | ----------------- | -------------------------------- |
-| ①   | スキル棚卸しチャットボット      | [http://localhost:8501](http://localhost:8501) | MVP完成（デモモード）      | `pocs/skill_inventory_bot/`      |
+| ①   | キャリア探索AI             | [http://localhost:8501](http://localhost:8501) | MVP完成（デモモード）      | `pocs/skill_inventory_bot/`      |
 | ④   | Career Team AI     | [http://localhost:8502](http://localhost:8502) | MVP完成（実API動作確認済み） | `pocs/career_team/`              |
 | ⑥   | 暗黙知継承プラットフォーム      | [http://localhost:8503](http://localhost:8503) | MVP完成（デモモード）      | `pocs/tacit_knowledge_platform/` |
 | ⑤   | InnerLens（テニス自己観察） | [http://localhost:8504](http://localhost:8504) | MVP完成（デモモード）      | `pocs/inner_lens/`               |

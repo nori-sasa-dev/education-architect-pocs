@@ -11,7 +11,7 @@
 
 | # | アプリ名 | 概要 | 技術 |
 |---|---------|------|------|
-| ① | [スキル棚卸しチャットボット](pocs/skill_inventory_bot/) | 対話形式でスキルを言語化するチャットBot | Python / Streamlit / Claude API |
+| ① | [キャリア探索AI](pocs/skill_inventory_bot/) | 対話形式でスキルを言語化するチャットBot | Python / Streamlit / Claude API |
 | ② | [Career Team AI](pocs/career_team/) | ライフデザインをサポートするマルチエージェントBot | Python / Streamlit / Claude API |
 | ③ | [InnerLens](pocs/inner_lens/) | テニスの自己観察・振り返りジャーナルアプリ | Python / Streamlit / Claude API |
 | ④ | [暗黙知継承プラットフォーム](pocs/tacit_knowledge_platform/) | 組織の暗黙知を対話で引き出し・蓄積するプラットフォーム | Python / Streamlit / Claude API |

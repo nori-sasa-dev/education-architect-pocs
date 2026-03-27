@@ -9,6 +9,7 @@
 | ④   | Career Team AI     | [http://localhost:8502](http://localhost:8502) | MVP完成（実API動作確認済み） | `pocs/career_team/`              |
 | ⑥   | 暗黙知継承プラットフォーム      | [http://localhost:8503](http://localhost:8503) | MVP完成（デモモード）      | `pocs/tacit_knowledge_platform/` |
 | ⑤   | InnerLens（テニス自己観察） | [http://localhost:8504](http://localhost:8504) | MVP完成（デモモード）      | `pocs/inner_lens/`               |
+| ⑨   | BioLens（姿勢バイオメカニクス分析） | [http://localhost:8507](http://localhost:8507) | MVP完成（実API動作確認済み） | `pocs/bio_lens/`                 |
 | -   | Career AI（参考コード）   | [http://localhost:8505](http://localhost:8505) | 初期プロトタイプ          | `pocs/career_ai/`                |
 | -   | Game Center        | [http://localhost:8506](http://localhost:8506) | -                 | `pocs/game_center/`              |
 

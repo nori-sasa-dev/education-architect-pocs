@@ -7,8 +7,16 @@
 import os
 import anthropic
 
-client = anthropic.Anthropic()
 MODEL = "claude-opus-4-6"
+_client: anthropic.Anthropic | None = None
+
+
+def _get_client(api_key: str | None = None) -> anthropic.Anthropic:
+    """APIクライアントを遅延初期化する"""
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
+    return _client
 
 # ============================================================
 # 専門家エージェントのシステムプロンプト
@@ -290,10 +298,10 @@ TOOL_TO_SPECIALIST = {
 # 専門家エージェント呼び出し
 # ============================================================
 
-def consult_specialist(specialist_key: str, question: str) -> str:
+def consult_specialist(specialist_key: str, question: str, api_key: str | None = None) -> str:
     """専門家エージェントに質問し、回答を返す"""
     specialist = SPECIALISTS[specialist_key]
-    response = client.messages.create(
+    response = _get_client(api_key).messages.create(
         model=MODEL,
         max_tokens=2000,
         thinking={"type": "adaptive"},
@@ -306,17 +314,23 @@ def consult_specialist(specialist_key: str, question: str) -> str:
 # オーケストレーター（アジェンティックループ）
 # ============================================================
 
-def coach(user_question: str, conversation_history: list[dict]) -> str:
+def coach(
+    user_question: str,
+    conversation_history: list[dict],
+    api_key: str | None = None,
+    on_consult: callable | None = None,
+) -> str:
     """
     ユーザーの質問をオーケストレーターが受け取り、
-    必要な専門家に相談しながら総合的な回答を生成する
+    必要な専門家に相談しながら総合的な回答を生成する。
+    on_consult: 専門家相談時に呼ばれるコールバック(specialist dict を引数)
     """
     messages = conversation_history + [
         {"role": "user", "content": user_question}
     ]
 
     while True:
-        response = client.messages.create(
+        response = _get_client(api_key).messages.create(
             model=MODEL,
             max_tokens=4000,
             system=ORCHESTRATOR_SYSTEM,
@@ -336,10 +350,13 @@ def coach(user_question: str, conversation_history: list[dict]) -> str:
                     specialist_key = TOOL_TO_SPECIALIST[block.name]
                     specialist = SPECIALISTS[specialist_key]
 
-                    print(f"  {specialist['emoji']} {specialist['name']}に相談中...")
+                    if on_consult:
+                        on_consult(specialist)
+                    else:
+                        print(f"  {specialist['emoji']} {specialist['name']}に相談中...")
 
                     expert_answer = consult_specialist(
-                        specialist_key, block.input["question"]
+                        specialist_key, block.input["question"], api_key
                     )
 
                     tool_results.append({

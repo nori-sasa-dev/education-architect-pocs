@@ -3,7 +3,12 @@ import json
 import os
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "sessions.db")
+# Streamlit Cloud では /mount/src/ が読み取り専用のため /tmp に書き込む
+_default_db_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+DB_PATH = os.path.join(
+    "/tmp" if not os.access(os.path.dirname(os.path.dirname(__file__)), os.W_OK) else _default_db_dir,
+    "sessions.db"
+)
 
 
 def get_connection() -> sqlite3.Connection:

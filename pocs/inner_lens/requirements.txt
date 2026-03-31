@@ -1,5 +1,5 @@
 streamlit>=1.30.0
 anthropic
-opencv-python
+opencv-python-headless
 mediapipe
 python-dotenv

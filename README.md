@@ -12,11 +12,14 @@
 | # | アプリ名 | 概要 | 技術 |
 |---|---------|------|------|
 | ① | [キャリア探索AI](pocs/skill_inventory_bot/) | 対話を通じてスキル・強み・価値観を引き出し、キャリアの方向性を探索するBot | Python / Streamlit / Claude API |
-| ② | [Career Team AI](pocs/career_team/) | ライフデザインをサポートするマルチエージェントBot | Python / Streamlit / Claude API |
-| ③ | [InnerLens](pocs/inner_lens/) | テニスの自己観察・振り返りジャーナルアプリ | Python / Streamlit / Claude API |
-| ④ | [暗黙知継承プラットフォーム](pocs/tacit_knowledge_platform/) | 組織の暗黙知を対話で引き出し・蓄積するプラットフォーム | Python / Streamlit / Claude API |
-| ⑤ | [FamilyHub](pocs/family_hub/) | コドモンのメール通知を解析してGoogleカレンダーに自動登録 | Google Apps Script / Claude API |
-| ⑥ | [学術テニスコーチングチーム](pocs/tennis_coaching_team/) | 解剖学・脳科学・物理学・心理学・栄養学の専門家AIが協働するコーチングBot | Python / Claude API（マルチエージェント） |
+| ② | [スキル×職種マッピングビジュアライザー](pocs/skill_mapping_visualizer/) | 保有スキルと10職種とのマッチ度をヒートマップ・レーダーチャートで可視化 | Python / Streamlit / Claude API / Plotly |
+| ③ | [スキルギャップ分析ツール](pocs/skill_gap_analyzer/) | 目標職種に向けたスキルギャップを分析し、学習ロードマップを自動生成 | Python / Streamlit / Claude API / Plotly |
+| ④ | [Career Team AI](pocs/career_team/) | ライフデザインをサポートするマルチエージェントBot | Python / Streamlit / Claude API |
+| ⑤ | [InnerLens](pocs/inner_lens/) | テニスの自己観察・振り返りジャーナルアプリ | Python / Streamlit / Claude API |
+| ⑥ | [暗黙知継承プラットフォーム](pocs/tacit_knowledge_platform/) | 組織の暗黙知を対話で引き出し・蓄積するプラットフォーム | Python / Streamlit / Claude API |
+| ⑦ | [FamilyHub](pocs/family_hub/) | コドモンのメール通知を解析してGoogleカレンダーに自動登録 | Google Apps Script / Claude API |
+| ⑧ | [学術テニスコーチングチーム](pocs/tennis_coaching_team/) | 解剖学・脳科学・物理学・心理学・栄養学の専門家AIが協働するコーチングBot | Python / Claude API（マルチエージェント） |
+| ⑨ | [BioLens](pocs/bio_lens/) | テニスのフォーム動画をバイオメカニクス的に分析するアプリ | Python / Streamlit / Claude API |
 
 ---
 

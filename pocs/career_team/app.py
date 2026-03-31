@@ -1,5 +1,10 @@
 import os
+import sys
 import uuid
+
+# Streamlit Cloud でのモジュール解決: app.py のディレクトリを明示的にパスへ追加
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import streamlit as st
 from dotenv import load_dotenv
 from agents import CoachAgent, MirrorAgent, ScoutAgent, StrategistAgent

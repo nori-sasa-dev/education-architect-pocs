@@ -1,10 +1,43 @@
 import mediapipe as mp
 import numpy as np
 import cv2
+import urllib.request
+import os
 
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+# モデルファイルは /tmp に保存（Streamlit Cloud でも書き込み可能）
+MODEL_PATH = "/tmp/pose_landmarker_lite.task"
+MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+)
+
+# 描画用ポーズコネクション（旧 POSE_CONNECTIONS の代替）
+_POSE_CONNECTIONS = [
+    (11, 12), (11, 13), (13, 15), (12, 14), (14, 16),  # 上半身
+    (11, 23), (12, 24), (23, 24),                       # 胴体
+    (23, 25), (25, 27), (24, 26), (26, 28),             # 下半身
+    (27, 29), (29, 31), (28, 30), (30, 32),             # 足
+]
+
+
+def _ensure_model():
+    """モデルファイルを /tmp にダウンロード（初回のみ）"""
+    if not os.path.exists(MODEL_PATH):
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+
+
+def _draw_landmarks(image: np.ndarray, landmarks) -> np.ndarray:
+    """ランドマークとコネクションを OpenCV で描画する"""
+    h, w = image.shape[:2]
+    points = {}
+    for idx, lm in enumerate(landmarks):
+        x, y = int(lm.x * w), int(lm.y * h)
+        points[idx] = (x, y)
+        cv2.circle(image, (x, y), 4, (0, 255, 0), -1)
+    for start, end in _POSE_CONNECTIONS:
+        if start in points and end in points:
+            cv2.line(image, points[start], points[end], (0, 128, 255), 2)
+    return image
 
 
 def analyze_pose(frame: np.ndarray) -> tuple[np.ndarray, dict | None]:
@@ -13,27 +46,27 @@ def analyze_pose(frame: np.ndarray) -> tuple[np.ndarray, dict | None]:
     戻り値: (スケルトン描画済み画像, 関節角度データ)
     姿勢が検出できない場合は角度データがNoneになる。
     """
-    with mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.5) as pose:
-        results = pose.process(frame)
+    _ensure_model()
 
-        # スケルトン描画用に元フレームをコピー
-        skeleton_frame = frame.copy()
+    options = mp.tasks.vision.PoseLandmarkerOptions(
+        base_options=mp.tasks.BaseOptions(model_asset_path=MODEL_PATH),
+        running_mode=mp.tasks.vision.RunningMode.IMAGE,
+    )
 
-        if not results.pose_landmarks:
+    skeleton_frame = frame.copy()
+
+    with mp.tasks.vision.PoseLandmarker.create_from_options(options) as landmarker:
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+        result = landmarker.detect(mp_image)
+
+        if not result.pose_landmarks:
             return skeleton_frame, None
 
-        # スケルトンを描画
-        mp_drawing.draw_landmarks(
-            skeleton_frame,
-            results.pose_landmarks,
-            mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
-        )
+        landmarks = result.pose_landmarks[0]
+        _draw_landmarks(skeleton_frame, landmarks)
+        angles = _calculate_angles(landmarks)
 
-        # 関節角度を計算（Claude への入力用）
-        angles = _calculate_angles(results.pose_landmarks.landmark)
-
-        return skeleton_frame, angles
+    return skeleton_frame, angles
 
 
 def _calculate_angles(landmarks) -> dict:
@@ -50,47 +83,14 @@ def _calculate_angles(landmarks) -> dict:
         return round(float(np.degrees(np.arccos(np.clip(cos_angle, -1.0, 1.0)))), 1)
 
     lm = landmarks
-
     return {
-        # 右肘（肩→肘→手首）
-        "右肘": angle(
-            lm[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-            lm[mp_pose.PoseLandmark.RIGHT_ELBOW],
-            lm[mp_pose.PoseLandmark.RIGHT_WRIST],
-        ),
-        # 左肘
-        "左肘": angle(
-            lm[mp_pose.PoseLandmark.LEFT_SHOULDER],
-            lm[mp_pose.PoseLandmark.LEFT_ELBOW],
-            lm[mp_pose.PoseLandmark.LEFT_WRIST],
-        ),
-        # 右膝（腰→膝→足首）
-        "右膝": angle(
-            lm[mp_pose.PoseLandmark.RIGHT_HIP],
-            lm[mp_pose.PoseLandmark.RIGHT_KNEE],
-            lm[mp_pose.PoseLandmark.RIGHT_ANKLE],
-        ),
-        # 左膝
-        "左膝": angle(
-            lm[mp_pose.PoseLandmark.LEFT_HIP],
-            lm[mp_pose.PoseLandmark.LEFT_KNEE],
-            lm[mp_pose.PoseLandmark.LEFT_ANKLE],
-        ),
-        # 右肩（首→右肩→右肘）
-        "右肩": angle(
-            lm[mp_pose.PoseLandmark.LEFT_SHOULDER],
-            lm[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-            lm[mp_pose.PoseLandmark.RIGHT_ELBOW],
-        ),
-        # 体の傾き（左肩と右肩のy座標差から推定）
-        "体の傾き": round(
-            abs(
-                lm[mp_pose.PoseLandmark.LEFT_SHOULDER].y
-                - lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].y
-            )
-            * 100,
-            1,
-        ),
+        # インデックスは mediapipe の仕様に準拠
+        "右肘": angle(lm[12], lm[14], lm[16]),  # RIGHT_SHOULDER→ELBOW→WRIST
+        "左肘": angle(lm[11], lm[13], lm[15]),  # LEFT_SHOULDER→ELBOW→WRIST
+        "右膝": angle(lm[24], lm[26], lm[28]),  # RIGHT_HIP→KNEE→ANKLE
+        "左膝": angle(lm[23], lm[25], lm[27]),  # LEFT_HIP→KNEE→ANKLE
+        "右肩": angle(lm[11], lm[12], lm[14]),  # LEFT_SHOULDER→RIGHT_SHOULDER→ELBOW
+        "体の傾き": round(abs(lm[11].y - lm[12].y) * 100, 1),
     }
 
 

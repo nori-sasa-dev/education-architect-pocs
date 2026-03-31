@@ -3,12 +3,18 @@ import json
 import os
 from datetime import datetime
 
-# Streamlit Cloud では /mount/src/ が読み取り専用のため /tmp に書き込む
+# Streamlit Cloud では /mount/src/ が読み取り専用のため /tmp にフォールバック
+import tempfile as _tempfile
 _default_db_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-DB_PATH = os.path.join(
-    "/tmp" if not os.access(os.path.dirname(os.path.dirname(__file__)), os.W_OK) else _default_db_dir,
-    "sessions.db"
-)
+try:
+    os.makedirs(_default_db_dir, exist_ok=True)
+    _test = os.path.join(_default_db_dir, ".write_test")
+    with open(_test, "w") as _f:
+        _f.write("test")
+    os.remove(_test)
+    DB_PATH = os.path.join(_default_db_dir, "sessions.db")
+except (PermissionError, OSError):
+    DB_PATH = os.path.join(_tempfile.gettempdir(), "career_team_sessions.db")
 
 
 def get_connection() -> sqlite3.Connection:

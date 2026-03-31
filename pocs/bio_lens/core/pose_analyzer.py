@@ -2,10 +2,15 @@ import math
 import cv2
 import mediapipe as mp
 import numpy as np
+import urllib.request
+import os
 
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+# モデルファイルは /tmp に保存（Streamlit Cloud でも書き込み可能）
+MODEL_PATH = "/tmp/pose_landmarker_lite.task"
+MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+)
 
 # テニスバイオメカニクスの理想範囲: {部位: (最小, 最大, 説明)}
 IDEAL_RANGES = {
@@ -20,15 +25,43 @@ IDEAL_RANGES = {
     "体幹前傾": (8,   30,  "前傾8-30°が効率的な重心位置"),
 }
 
-# 角度テキストをオーバーレイする関節とそのランドマーク
+# 角度テキストをオーバーレイする関節とそのランドマークインデックス
 _OVERLAY_MAP = {
-    "右肘":   mp_pose.PoseLandmark.RIGHT_ELBOW,
-    "左肘":   mp_pose.PoseLandmark.LEFT_ELBOW,
-    "右膝":   mp_pose.PoseLandmark.RIGHT_KNEE,
-    "左膝":   mp_pose.PoseLandmark.LEFT_KNEE,
-    "右股関節": mp_pose.PoseLandmark.RIGHT_HIP,
-    "左股関節": mp_pose.PoseLandmark.LEFT_HIP,
+    "右肘":   14,  # RIGHT_ELBOW
+    "左肘":   13,  # LEFT_ELBOW
+    "右膝":   26,  # RIGHT_KNEE
+    "左膝":   25,  # LEFT_KNEE
+    "右股関節": 24,  # RIGHT_HIP
+    "左股関節": 23,  # LEFT_HIP
 }
+
+# 描画用ポーズコネクション
+_POSE_CONNECTIONS = [
+    (11, 12), (11, 13), (13, 15), (12, 14), (14, 16),  # 上半身
+    (11, 23), (12, 24), (23, 24),                       # 胴体
+    (23, 25), (25, 27), (24, 26), (26, 28),             # 下半身
+    (27, 29), (29, 31), (28, 30), (30, 32),             # 足
+]
+
+
+def _ensure_model():
+    """モデルファイルを /tmp にダウンロード（初回のみ）"""
+    if not os.path.exists(MODEL_PATH):
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+
+
+def _draw_landmarks(image: np.ndarray, landmarks) -> np.ndarray:
+    """ランドマークとコネクションを OpenCV で描画する"""
+    h, w = image.shape[:2]
+    points = {}
+    for idx, lm in enumerate(landmarks):
+        x, y = int(lm.x * w), int(lm.y * h)
+        points[idx] = (x, y)
+        cv2.circle(image, (x, y), 4, (0, 255, 0), -1)
+    for start, end in _POSE_CONNECTIONS:
+        if start in points and end in points:
+            cv2.line(image, points[start], points[end], (0, 128, 255), 2)
+    return image
 
 
 def analyze_pose(frame: np.ndarray) -> tuple[np.ndarray, dict | None, dict | None]:
@@ -37,26 +70,29 @@ def analyze_pose(frame: np.ndarray) -> tuple[np.ndarray, dict | None, dict | Non
     戻り値: (角度オーバーレイ付きスケルトン画像, 関節角度データ, スコアデータ)
     姿勢が検出できない場合、角度とスコアはNone。
     """
-    with mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.5) as pose:
-        results = pose.process(frame)
-        skeleton_frame = frame.copy()
+    _ensure_model()
 
-        if not results.pose_landmarks:
+    options = mp.tasks.vision.PoseLandmarkerOptions(
+        base_options=mp.tasks.BaseOptions(model_asset_path=MODEL_PATH),
+        running_mode=mp.tasks.vision.RunningMode.IMAGE,
+    )
+
+    skeleton_frame = frame.copy()
+
+    with mp.tasks.vision.PoseLandmarker.create_from_options(options) as landmarker:
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+        result = landmarker.detect(mp_image)
+
+        if not result.pose_landmarks:
             return skeleton_frame, None, None
 
-        mp_drawing.draw_landmarks(
-            skeleton_frame,
-            results.pose_landmarks,
-            mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
-        )
-
-        lm = results.pose_landmarks.landmark
-        angles = _calculate_angles(lm)
+        landmarks = result.pose_landmarks[0]
+        _draw_landmarks(skeleton_frame, landmarks)
+        angles = _calculate_angles(landmarks)
         scores = _calculate_scores(angles)
-        annotated = _draw_angle_overlay(skeleton_frame, lm, angles, frame.shape)
+        annotated = _draw_angle_overlay(skeleton_frame, landmarks, angles, frame.shape)
 
-        return annotated, angles, scores
+    return annotated, angles, scores
 
 
 def _angle_3pts(a, b, c) -> float:
@@ -75,62 +111,28 @@ def _calculate_angles(lm) -> dict:
     angles = {}
 
     # 肘（肩→肘→手首）
-    angles["右肘"] = _angle_3pts(
-        lm[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-        lm[mp_pose.PoseLandmark.RIGHT_ELBOW],
-        lm[mp_pose.PoseLandmark.RIGHT_WRIST],
-    )
-    angles["左肘"] = _angle_3pts(
-        lm[mp_pose.PoseLandmark.LEFT_SHOULDER],
-        lm[mp_pose.PoseLandmark.LEFT_ELBOW],
-        lm[mp_pose.PoseLandmark.LEFT_WRIST],
-    )
+    angles["右肘"] = _angle_3pts(lm[12], lm[14], lm[16])  # RIGHT_SHOULDER→ELBOW→WRIST
+    angles["左肘"] = _angle_3pts(lm[11], lm[13], lm[15])  # LEFT_SHOULDER→ELBOW→WRIST
 
     # 膝（腰→膝→足首）
-    angles["右膝"] = _angle_3pts(
-        lm[mp_pose.PoseLandmark.RIGHT_HIP],
-        lm[mp_pose.PoseLandmark.RIGHT_KNEE],
-        lm[mp_pose.PoseLandmark.RIGHT_ANKLE],
-    )
-    angles["左膝"] = _angle_3pts(
-        lm[mp_pose.PoseLandmark.LEFT_HIP],
-        lm[mp_pose.PoseLandmark.LEFT_KNEE],
-        lm[mp_pose.PoseLandmark.LEFT_ANKLE],
-    )
+    angles["右膝"] = _angle_3pts(lm[24], lm[26], lm[28])  # RIGHT_HIP→KNEE→ANKLE
+    angles["左膝"] = _angle_3pts(lm[23], lm[25], lm[27])  # LEFT_HIP→KNEE→ANKLE
 
     # 股関節（肩→腰→膝）
-    angles["右股関節"] = _angle_3pts(
-        lm[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-        lm[mp_pose.PoseLandmark.RIGHT_HIP],
-        lm[mp_pose.PoseLandmark.RIGHT_KNEE],
-    )
-    angles["左股関節"] = _angle_3pts(
-        lm[mp_pose.PoseLandmark.LEFT_SHOULDER],
-        lm[mp_pose.PoseLandmark.LEFT_HIP],
-        lm[mp_pose.PoseLandmark.LEFT_KNEE],
-    )
+    angles["右股関節"] = _angle_3pts(lm[12], lm[24], lm[26])  # RIGHT_SHOULDER→HIP→KNEE
+    angles["左股関節"] = _angle_3pts(lm[11], lm[23], lm[25])  # LEFT_SHOULDER→HIP→KNEE
 
     # 肩（左肩→右肩→右肘）
-    angles["右肩"] = _angle_3pts(
-        lm[mp_pose.PoseLandmark.LEFT_SHOULDER],
-        lm[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-        lm[mp_pose.PoseLandmark.RIGHT_ELBOW],
-    )
+    angles["右肩"] = _angle_3pts(lm[11], lm[12], lm[14])  # LEFT_SHOULDER→RIGHT_SHOULDER→ELBOW
 
     # 肩ラインの傾き（左右肩のy座標差）
-    angles["体の傾き"] = round(
-        abs(
-            lm[mp_pose.PoseLandmark.LEFT_SHOULDER].y
-            - lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].y
-        ) * 100,
-        1,
-    )
+    angles["体の傾き"] = round(abs(lm[11].y - lm[12].y) * 100, 1)
 
     # 体幹前傾（肩中点→腰中点のベクトルと垂直線の角度）
-    s_mid_x = (lm[mp_pose.PoseLandmark.LEFT_SHOULDER].x + lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].x) / 2
-    s_mid_y = (lm[mp_pose.PoseLandmark.LEFT_SHOULDER].y + lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].y) / 2
-    h_mid_x = (lm[mp_pose.PoseLandmark.LEFT_HIP].x + lm[mp_pose.PoseLandmark.RIGHT_HIP].x) / 2
-    h_mid_y = (lm[mp_pose.PoseLandmark.LEFT_HIP].y + lm[mp_pose.PoseLandmark.RIGHT_HIP].y) / 2
+    s_mid_x = (lm[11].x + lm[12].x) / 2
+    s_mid_y = (lm[11].y + lm[12].y) / 2
+    h_mid_x = (lm[23].x + lm[24].x) / 2
+    h_mid_y = (lm[23].y + lm[24].y) / 2
     dx = s_mid_x - h_mid_x
     dy = abs(s_mid_y - h_mid_y) + 1e-6
     angles["体幹前傾"] = round(math.degrees(math.atan2(abs(dx), dy)), 1)
@@ -159,10 +161,10 @@ def _draw_angle_overlay(image: np.ndarray, landmarks, angles: dict, shape) -> np
     h, w = shape[:2]
     result = image.copy()
 
-    for name, lm_id in _OVERLAY_MAP.items():
+    for name, lm_idx in _OVERLAY_MAP.items():
         if name not in angles:
             continue
-        lm = landmarks[lm_id]
+        lm = landmarks[lm_idx]
         x = int(lm.x * w)
         y = int(lm.y * h)
         text = f"{angles[name]:.0f}\u00b0"

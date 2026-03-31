@@ -1,6 +1,6 @@
 streamlit>=1.31.0
 anthropic
-opencv-python
-mediapipe
+opencv-python-headless
+mediapipe==0.10.33
 python-dotenv
 plotly

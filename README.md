@@ -20,6 +20,7 @@
 | ⑦ | [FamilyHub](pocs/family_hub/) | コドモンのメール通知を解析してGoogleカレンダーに自動登録 | Google Apps Script / Claude API |
 | ⑧ | [学術テニスコーチングチーム](pocs/tennis_coaching_team/) | 解剖学・脳科学・物理学・心理学・栄養学の専門家AIが協働するコーチングBot | Python / Claude API（マルチエージェント） |
 | ⑨ | [BioLens](pocs/bio_lens/) | テニスのフォーム動画をバイオメカニクス的に分析するアプリ | Python / Streamlit / Claude API |
+| ⑩ | [WonderSnap Book](pocs/wonder_snap_book/) | 子どもが撮った写真をもとに、AIとの会話から絵本を自動生成するアプリ | Python / Streamlit / Claude API / DALL-E 3 / ElevenLabs |
 
 ---
 
@@ -28,6 +29,9 @@
 - **言語**: Python 3.12
 - **UI**: Streamlit
 - **AI**: Claude API（`claude-sonnet-4-6` / `claude-opus-4-6`）
+- **画像生成**: DALL-E 3（OpenAI）
+- **音声合成**: ElevenLabs
+- **音声入力**: Whisper（OpenAI）
 - **その他**: Google Apps Script
 
 ---

@@ -1,5 +1,6 @@
 import os
 import io
+import base64
 import streamlit as st
 from dotenv import load_dotenv
 from PIL import Image
@@ -8,6 +9,7 @@ from agents.story_agent import StoryAgent, MAX_TURNS
 from core.image_generator import generate_illustration
 from core.narrator import text_to_speech
 from core.music_selector import get_bgm_path
+from core.book_history import save_book as save_book_to_history, list_books, get_book
 
 load_dotenv()
 
@@ -240,6 +242,12 @@ if "page_direction" not in st.session_state:
     st.session_state.page_direction = "next"  # ページめくり方向（next / prev）
 if "bgm_path" not in st.session_state:
     st.session_state.bgm_path = None  # 絵本フェーズで固定する1曲
+if "conversation_audio_cache" not in st.session_state:
+    st.session_state.conversation_audio_cache = {}  # {AIターン番号: bytes}
+if "last_played_ai_turn" not in st.session_state:
+    st.session_state.last_played_ai_turn = -1  # 最後に自動再生したAIターン番号
+if "book_saved" not in st.session_state:
+    st.session_state.book_saved = False  # 生成後の二重保存を防ぐフラグ
 
 # ============================
 # サイドバー
@@ -265,9 +273,41 @@ with st.sidebar:
 
     if st.button("🔄 はじめから やりなおす", use_container_width=True):
         for key in ["phase", "photo_bytes", "photo_description", "conversation",
-                    "wonder_words", "book", "current_page", "audio_cache", "bgm_path"]:
-            del st.session_state[key]
+                    "wonder_words", "book", "current_page", "audio_cache", "bgm_path",
+                    "conversation_audio_cache", "last_played_ai_turn", "book_saved"]:
+            if key in st.session_state:
+                del st.session_state[key]
         st.rerun()
+
+    # ============================
+    # 過去の絵本履歴
+    # ============================
+    st.divider()
+    st.markdown("### 📚 これまでのえほん")
+    past_books = list_books()
+    if past_books:
+        for b in past_books:
+            col_title, col_date = st.columns([3, 1])
+            with col_title:
+                if st.button(f"📖 {b['title']}", key=f"hist_{b['id']}", use_container_width=True):
+                    book_data = get_book(b["id"])
+                    for key in ["phase", "photo_bytes", "photo_description", "conversation",
+                                "wonder_words", "book", "current_page", "audio_cache", "bgm_path",
+                                "page_direction", "conversation_audio_cache", "last_played_ai_turn",
+                                "book_saved"]:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    st.session_state.phase = "book"
+                    st.session_state.book = book_data
+                    st.session_state.current_page = 0
+                    st.session_state.audio_cache = {}
+                    st.session_state.page_direction = "next"
+                    st.session_state.book_saved = True  # 履歴読み込みは再保存しない
+                    st.rerun()
+            with col_date:
+                st.caption(b["created_at"][:10])
+    else:
+        st.caption("まだえほんがないよ")
 
 # ============================
 # フェーズ1: 写真アップロード
@@ -336,6 +376,22 @@ elif st.session_state.phase == "conversation":
 
     turn = len([m for m in st.session_state.conversation if m["role"] == "ai"])
 
+    # 最新のAI問いかけを自動読み上げ（1ターンにつき1回のみ）
+    latest_ai_turn = turn - 1
+    if (latest_ai_turn >= 0
+            and latest_ai_turn in st.session_state.conversation_audio_cache
+            and latest_ai_turn > st.session_state.last_played_ai_turn):
+        st.session_state.last_played_ai_turn = latest_ai_turn
+        audio_b64 = base64.b64encode(
+            st.session_state.conversation_audio_cache[latest_ai_turn]
+        ).decode()
+        st.markdown(
+            f'<audio autoplay style="display:none">'
+            f'<source src="data:audio/mpeg;base64,{audio_b64}" type="audio/mpeg">'
+            f'</audio>',
+            unsafe_allow_html=True,
+        )
+
     # 最初の問いかけを出す
     if not st.session_state.conversation:
         question = agent.get_question(
@@ -344,6 +400,10 @@ elif st.session_state.phase == "conversation":
             conversation_so_far="",
         )
         st.session_state.conversation.append({"role": "ai", "text": question})
+        # 問いかけを読み上げ用にキャッシュ
+        audio = text_to_speech(text=question, elevenlabs_api_key=elevenlabs_api_key)
+        if audio:
+            st.session_state.conversation_audio_cache[0] = audio
         st.rerun()
 
     # 「絵本にしよう」が来たら移行フェーズへ
@@ -367,7 +427,7 @@ elif st.session_state.phase == "conversation":
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        audio_input = st.audio_input("🎤 こえで はなす")
+        audio_input = st.audio_input("🎤 こえで はなす", key=f"audio_{st.session_state.input_key}")
 
     with col2:
         st.text_input(
@@ -420,6 +480,11 @@ elif st.session_state.phase == "conversation":
             conversation_so_far=conversation_text,
         )
         st.session_state.conversation.append({"role": "ai", "text": next_question})
+        # 問いかけを読み上げ用にキャッシュ
+        ai_turn = len([m for m in st.session_state.conversation if m["role"] == "ai"]) - 1
+        audio = text_to_speech(text=next_question, elevenlabs_api_key=elevenlabs_api_key)
+        if audio:
+            st.session_state.conversation_audio_cache[ai_turn] = audio
         st.rerun()
 
 # ============================
@@ -461,6 +526,14 @@ elif st.session_state.phase == "generating":
                 page_index=i,
                 openai_api_key=openai_api_key,
             )
+            # DALL-E が返す URL を即座に bytes に変換（URLは期限切れになるため）
+            if isinstance(image_data, str) and image_data.startswith("http"):
+                import urllib.request
+                try:
+                    with urllib.request.urlopen(image_data, timeout=30) as resp:
+                        image_data = resp.read()
+                except Exception:
+                    image_data = None
             book["pages"][i]["image_data"] = image_data
 
         st.write("こえを つくっています... 🎙️")
@@ -472,6 +545,13 @@ elif st.session_state.phase == "generating":
             st.session_state.audio_cache[i] = audio
 
         st.session_state.book = book
+
+        # 履歴に保存（二重保存防止）
+        if not st.session_state.book_saved:
+            st.write("きろくしています... 📝")
+            save_book_to_history(title=book["title"], pages=book["pages"])
+            st.session_state.book_saved = True
+
         status.update(label="できたよ！ 🎉", state="complete")
 
     st.session_state.phase = "book"

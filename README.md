@@ -21,6 +21,7 @@
 | ⑧ | [学術テニスコーチングチーム](pocs/tennis_coaching_team/) | 解剖学・脳科学・物理学・心理学・栄養学の専門家AIが協働するコーチングBot | Python / Claude API（マルチエージェント） |
 | ⑨ | [BioLens](pocs/bio_lens/) | テニスのフォーム動画をバイオメカニクス的に分析するアプリ | Python / Streamlit / Claude API |
 | ⑩ | [WonderSnap Book](pocs/wonder_snap_book/) | 子どもが撮った写真をもとに、AIとの会話から絵本を自動生成するアプリ | Python / Streamlit / Claude API / DALL-E 3 / ElevenLabs |
+| ⑪ | [Safari Bookmark Organizer](pocs/safari_bookmark_organizer/) | SafariのブックマークをClaudeが自動でカテゴリ分類し、整理済みHTMLで書き出すアプリ | Python / Streamlit / Claude API / plistlib |
 
 ---
 

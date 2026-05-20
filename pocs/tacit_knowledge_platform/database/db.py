@@ -47,7 +47,28 @@ def init_db():
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS thanks_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL,
+            thanker_name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (item_id) REFERENCES knowledge_items(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS author_thanks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            author_name TEXT NOT NULL,
+            thanker_name TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
     """)
+    # hit_count 列の追加（既存DBへのマイグレーション）
+    try:
+        conn.execute("ALTER TABLE knowledge_items ADD COLUMN hit_count INTEGER DEFAULT 0")
+        conn.commit()
+    except Exception:
+        pass
     conn.close()
 
 
@@ -134,6 +155,17 @@ def search_knowledge(query: str, category: str = None) -> list[dict]:
             sql += " ORDER BY ki.id DESC"
             rows = conn.execute(sql, params).fetchall()
 
+        # 検索ヒット数をカウントアップ
+        if rows:
+            ids = [row["id"] for row in rows]
+            conn.execute(
+                "UPDATE knowledge_items SET hit_count = hit_count + 1 WHERE id IN ({})".format(
+                    ",".join("?" * len(ids))
+                ),
+                ids,
+            )
+            conn.commit()
+
         return [dict(row) for row in rows]
     finally:
         conn.close()
@@ -157,6 +189,38 @@ def get_all_authors() -> list[str]:
             "SELECT DISTINCT author_name FROM knowledge_entries ORDER BY author_name"
         ).fetchall()
         return [row["author_name"] for row in rows]
+    finally:
+        conn.close()
+
+
+def get_author_info(author_name: str) -> dict:
+    """特定の記録者の最新プロフィールを取得する"""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """SELECT author_name, author_role, department, years_of_experience
+               FROM knowledge_entries WHERE author_name = ?
+               ORDER BY created_at DESC LIMIT 1""",
+            (author_name,),
+        ).fetchone()
+        return dict(row) if row else {}
+    finally:
+        conn.close()
+
+
+def get_knowledge_items_by_author(author_name: str) -> list[dict]:
+    """特定の記録者の全ナレッジアイテムを取得する"""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT ki.id, ki.category, ki.title, ki.content, ki.context, ki.keywords
+               FROM knowledge_items ki
+               JOIN knowledge_entries ke ON ki.entry_id = ke.id
+               WHERE ke.author_name = ?
+               ORDER BY ki.id""",
+            (author_name,),
+        ).fetchall()
+        return [dict(row) for row in rows]
     finally:
         conn.close()
 
@@ -203,6 +267,47 @@ def delete_knowledge_item(item_id: int):
         conn.close()
 
 
+def add_thanks(item_id: int, thanker_name: str) -> int:
+    """ありがとうを記録して累計数を返す"""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO thanks_log (item_id, thanker_name, created_at) VALUES (?, ?, ?)",
+            (item_id, thanker_name, datetime.now().isoformat()),
+        )
+        conn.commit()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM thanks_log WHERE item_id = ?", (item_id,)
+        ).fetchone()[0]
+        return count
+    finally:
+        conn.close()
+
+
+def get_thanks_count(item_id: int) -> int:
+    """指定ナレッジへのありがとう累計数を返す"""
+    conn = get_connection()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM thanks_log WHERE item_id = ?", (item_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def get_thanks_log(item_id: int) -> list[dict]:
+    """指定ナレッジへのありがとう履歴を返す（新しい順）"""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT thanker_name, created_at FROM thanks_log WHERE item_id = ? ORDER BY created_at DESC",
+            (item_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def delete_knowledge_entry(entry_id: int):
     """ナレッジエントリーとその配下のアイテムを一括削除する"""
     conn = get_connection()
@@ -210,6 +315,97 @@ def delete_knowledge_entry(entry_id: int):
         conn.execute("DELETE FROM knowledge_items WHERE entry_id = ?", (entry_id,))
         conn.execute("DELETE FROM knowledge_entries WHERE id = ?", (entry_id,))
         conn.commit()
+    finally:
+        conn.close()
+
+
+def get_author_ranking() -> list[dict]:
+    """登録者ごとの貢献度ランキングを返す（スコア降順）"""
+    conn = get_connection()
+    try:
+        authors = conn.execute(
+            """SELECT ke.author_name, ke.author_role, ke.department,
+                      COUNT(DISTINCT ki.id) as item_count,
+                      COALESCE(SUM(ki.hit_count), 0) as total_hits
+               FROM knowledge_entries ke
+               LEFT JOIN knowledge_items ki ON ki.entry_id = ke.id
+               GROUP BY ke.author_name"""
+        ).fetchall()
+
+        result = []
+        for row in authors:
+            author_name = row["author_name"]
+
+            item_thanks = conn.execute(
+                """SELECT COUNT(*) FROM thanks_log tl
+                   JOIN knowledge_items ki ON ki.id = tl.item_id
+                   JOIN knowledge_entries ke ON ke.id = ki.entry_id
+                   WHERE ke.author_name = ?""",
+                (author_name,),
+            ).fetchone()[0]
+
+            author_thanks = conn.execute(
+                "SELECT COUNT(*) FROM author_thanks WHERE author_name = ?",
+                (author_name,),
+            ).fetchone()[0]
+
+            total_thanks = item_thanks + author_thanks
+            score = row["item_count"] * 10 + item_thanks * 20 + author_thanks * 30 + row["total_hits"]
+
+            result.append({
+                "author_name": author_name,
+                "author_role": row["author_role"] or "",
+                "department": row["department"] or "",
+                "item_count": row["item_count"],
+                "total_hits": row["total_hits"],
+                "item_thanks": item_thanks,
+                "author_thanks": author_thanks,
+                "total_thanks": total_thanks,
+                "score": score,
+            })
+
+        return sorted(result, key=lambda x: x["score"], reverse=True)
+    finally:
+        conn.close()
+
+
+def add_author_thanks(author_name: str, thanker_name: str) -> int:
+    """前任者へのありがとうを記録して累計数を返す"""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO author_thanks (author_name, thanker_name, created_at) VALUES (?, ?, ?)",
+            (author_name, thanker_name, datetime.now().isoformat()),
+        )
+        conn.commit()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM author_thanks WHERE author_name = ?", (author_name,)
+        ).fetchone()[0]
+        return count
+    finally:
+        conn.close()
+
+
+def get_author_thanks_count(author_name: str) -> int:
+    """前任者へのありがとう累計数を返す"""
+    conn = get_connection()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM author_thanks WHERE author_name = ?", (author_name,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def get_author_thanks_log(author_name: str) -> list[dict]:
+    """前任者へのありがとう履歴を返す（新しい順）"""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT thanker_name, created_at FROM author_thanks WHERE author_name = ? ORDER BY created_at DESC",
+            (author_name,),
+        ).fetchall()
+        return [dict(row) for row in rows]
     finally:
         conn.close()
 

@@ -22,6 +22,7 @@
 | ⑨ | [BioLens](pocs/bio_lens/) | テニスのフォーム動画をバイオメカニクス的に分析するアプリ | Python / Streamlit / Claude API |
 | ⑩ | [WonderSnap Book](pocs/wonder_snap_book/) | 子どもが撮った写真をもとに、AIとの会話から絵本を自動生成するアプリ | Python / Streamlit / Claude API / DALL-E 3 / ElevenLabs |
 | ⑪ | [Safari Bookmark Organizer](pocs/safari_bookmark_organizer/) | SafariのブックマークをClaudeが自動でカテゴリ分類し、整理済みHTMLで書き出すアプリ | Python / Streamlit / Claude API / plistlib |
+| ⑫ | [AIできる課？](pocs/ai_dekiru_ka/) | 業務のAI化可能性を診断し、削減時間・ロードマップ・実装ガイドを生成。チームダッシュボード・実装ステータス管理も対応 | Python / Streamlit / Claude API / SQLite / Plotly |
 
 ---
 

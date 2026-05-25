@@ -1,4 +1,4 @@
-# 暗黙知継承プラットフォーム
+# ナレッジブリッジ
 
 組織の暗黙知を対話で引き出し、蓄積・検索できるプラットフォーム。
 
@@ -12,6 +12,7 @@
 - 知識のカテゴリ分類・タグ付け
 - キーワード検索（SQLite）
 - 知識の編集・削除・統計表示
+- ランキングBIページ（貢献度・カテゴリ分布の可視化）
 - APIキー未設定時のデモモード対応
 
 ## 技術スタック
@@ -26,7 +27,7 @@
 ```bash
 cd pocs/tacit_knowledge_platform
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # .env に ANTHROPIC_API_KEY を設定

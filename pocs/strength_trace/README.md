@@ -43,7 +43,7 @@ streamlit run app.py
 
 ```
 strength_trace/
-├── app.py                      # 体験フロー（選択→分析→編集→共有→たたき台）
+├── app.py                      # 体験フロー（自分のシート登録→分析→編集→共有選択→上長プレビュー）
 ├── agents/trace_agent.py       # 点→線分析エージェント＋デモ応答
 ├── data/sample_employees/      # 架空社員（佐々木・井上）各4期分
 ├── utils/viz.py                # 軌跡の濃淡可視化

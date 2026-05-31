@@ -51,7 +51,7 @@ with st.sidebar:
     st.title("🧭 軌跡 / Trace")
     st.caption("持ち味の発見ツール（POC）")
     if agent.is_demo_mode:
-        st.info("🎭 デモモード\nAPIキー未設定のため、佐々木さんの固定サンプルを表示します。")
+        st.info("🎭 デモモード\nAPIキー未設定のため、選んだサンプルの固定結果を表示します。")
     else:
         st.success("✅ APIモード")
     st.divider()
@@ -75,18 +75,22 @@ if st.session_state.step == 1:
         "あなたらしい持ち味が一本の線として浮かび上がってきます。"
     )
     st.divider()
-    st.subheader("誰の軌跡を見ますか？")
-    name = st.radio(
-        "社員を選択",
-        list(employees.keys()),
-        format_func=lambda n: f"{n}（{employees[n]['role']}）",
-        label_visibility="collapsed",
+    st.subheader("あなたのシートを登録する")
+    st.markdown(
+        "本来は、ここに**ご自身の4期分のシート**（業績・行動・キャリアデザイン）を登録します。\n\n"
+        "見えるのは**あなた自身の持ち味だけ**です。他の人のデータを覗くことはできません。"
     )
-    with st.expander("この人の各期シートを見る"):
+    st.info("🧪 これはPOCです。下のサンプルを「自分のシート」として読み込んで体験できます。")
+    name = st.radio(
+        "サンプルで試す",
+        list(employees.keys()),
+        format_func=lambda n: f"{n}（{employees[n]['role']}）として体験する",
+    )
+    with st.expander("登録される各期シートを見る"):
         for p in employees[name]["periods"]:
             st.markdown(f"**{p['period']}**　案件：{p['project']}")
             st.caption(f"行動：{p['behavior_sheet']}")
-    if st.button("この人の持ち味を分析する", type="primary"):
+    if st.button("自分の持ち味を分析する", type="primary"):
         st.session_state.selected = name
         with st.spinner("4期分のシートを線で読み解いています…"):
             text = agent.analyze(employees[name])
@@ -103,8 +107,8 @@ if st.session_state.step == 1:
 # ========== Step 2：持ち味カード表示 + 本人編集 ==========
 elif st.session_state.step == 2:
     name = st.session_state.selected
-    st.header(f"{name} さんの持ち味")
-    st.caption("点では見えにくい、けれど線として確かに通っている持ち味です。納得できないものは外せます。")
+    st.header("あなたの持ち味")
+    st.caption("点では見えにくい、けれど線として確かに通っている、あなたの持ち味です。納得できないものは外せます。")
     st.markdown(
         "軌跡の濃淡：**●** 濃い　**◐** 中くらい　**○** 薄い　"
         "（左が古い期 → 右が新しい期）"
@@ -129,33 +133,53 @@ elif st.session_state.step == 2:
 
     st.divider()
     cols = st.columns(2)
-    if cols[0].button("← 社員選択に戻る"):
+    if cols[0].button("← シート登録に戻る"):
         st.session_state.step = 1
         st.rerun()
-    if cols[1].button("面談用のたたき台を作る →", type="primary"):
+    if cols[1].button("共有範囲を決めてたたき台を作る →", type="primary"):
         st.session_state.step = 4
         st.rerun()
 
 
-# ========== Step 4：面談用たたき台 ==========
+# ========== Step 4：面談たたき台 + 上長プレビュー ==========
 elif st.session_state.step == 4:
     name = st.session_state.selected
-    shared = [t for t in st.session_state.traits if st.session_state.share_flags.get(t["name"])]
-    st.header("面談用のたたき台")
-    st.caption("上長との対話の出発点です。あなたが選んだ持ち味だけが載っています。")
+    all_traits = st.session_state.traits
+    shared = [t for t in all_traits if st.session_state.share_flags.get(t["name"])]
+    hidden = [t for t in all_traits if not st.session_state.share_flags.get(t["name"])]
+
+    st.header("面談の準備ができました")
+
+    # --- 上長プレビュー：共有した分だけが渡る非対称性を体験させる ---
+    st.subheader("👤 上長に見えるのは、これだけです")
+    st.caption(
+        f"{len(all_traits)}個の持ち味のうち、あなたが共有を選んだ "
+        f"**{len(shared)}個** だけが上長に渡ります。"
+        "残りはあなたの手元にのみ残り、上長には見えません。"
+    )
 
     if not shared:
-        st.warning("共有する持ち味が選ばれていません。前の画面で選び直してください。")
+        st.warning("共有する持ち味が選ばれていません。前の画面で少なくとも1つ選んでください。")
     else:
-        md_lines = [f"# {name} さんの持ち味（本人が共有を選んだもの）", ""]
+        with st.container(border=True):
+            st.markdown(f"**{name} さんが共有した持ち味**")
+            for t in shared:
+                label, _ = TYPE_LABEL.get(t["type"], (t["type"], ""))
+                st.markdown(f"##### {t['name']}")
+                st.markdown(f"{label}　{trajectory_sparkline(t['trajectory'])}")
+                st.write(t["summary"])
+                st.markdown(f"- **発揮される環境**：{t['environment']}")
+                st.info(f"💬 一緒に話したい問い：{t['talking_point']}")
+
+    if hidden:
+        hidden_names = "、".join(f"「{t['name']}」" for t in hidden)
+        st.caption(f"🔒 上長には共有していない持ち味：{hidden_names}（あなたの手元にのみ残ります）")
+
+    # --- ダウンロード（共有分のみ） ---
+    if shared:
+        md_lines = [f"# {name} さんが共有した持ち味", ""]
         for t in shared:
             label, _ = TYPE_LABEL.get(t["type"], (t["type"], ""))
-            st.subheader(f"{t['name']}")
-            st.markdown(f"**{label}**　{trajectory_sparkline(t['trajectory'])}")
-            st.write(t["summary"])
-            st.markdown(f"- **発揮される環境**：{t['environment']}")
-            st.markdown(f"- **一緒に話したい問い**：{t['talking_point']}")
-            st.divider()
             md_lines += [
                 f"## {t['name']}（{label}）",
                 f"- 軌跡：{trajectory_sparkline(t['trajectory'])}",
@@ -171,6 +195,7 @@ elif st.session_state.step == 4:
             mime="text/markdown",
         )
 
-    if st.button("← 持ち味カードに戻る"):
+    st.divider()
+    if st.button("← 共有範囲を選び直す"):
         st.session_state.step = 2
         st.rerun()

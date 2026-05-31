@@ -120,7 +120,6 @@ elif st.session_state.step == 2:
             with st.expander("この持ち味が育ってきた軌跡を見る"):
                 st.markdown(trajectory_table(trait["trajectory"]))
                 st.markdown(f"**発揮される環境**：{trait['environment']}")
-            st.info(f"💬 面談での問い：{trait['talking_point']}")
             # 所有権：本人が共有するかを決める
             st.session_state.share_flags[trait["name"]] = st.checkbox(
                 "この持ち味を上長と共有する",

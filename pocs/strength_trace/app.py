@@ -12,7 +12,7 @@ load_dotenv()
 
 DATA_DIR = Path(__file__).parent / "data" / "sample_employees"
 
-st.set_page_config(page_title="軌跡 — 持ち味の発見", page_icon="🧭", layout="wide")
+st.set_page_config(page_title="軌跡 — 持ち味の発見", page_icon="🧭", layout="centered")
 
 
 # ---------- データ読み込み ----------
@@ -56,9 +56,9 @@ with st.sidebar:
         st.success("✅ APIモード")
     st.divider()
     st.markdown(
-        "**これは査定ツールではありません。**\n\n"
+        "**あなたの持ち味を、あなたのために見つける道具です。**\n\n"
         "過去のシートを *線* で読み解き、点では見えなかった"
-        "あなたの持ち味を見つけるための道具です。"
+        "あなたらしさに気づき、これからどう活かすかを一緒に考えるために使います。"
     )
     if st.button("最初に戻る"):
         for k in ("step", "selected", "traits", "share_flags"):
@@ -105,16 +105,17 @@ elif st.session_state.step == 2:
     name = st.session_state.selected
     st.header(f"{name} さんの持ち味")
     st.caption("点では見えにくい、けれど線として確かに通っている持ち味です。納得できないものは外せます。")
+    st.markdown(
+        "軌跡の濃淡：**●** 濃い　**◐** 中くらい　**○** 薄い　"
+        "（左が古い期 → 右が新しい期）"
+    )
 
     for i, trait in enumerate(st.session_state.traits):
         label, desc = TYPE_LABEL.get(trait["type"], (trait["type"], ""))
         with st.container(border=True):
-            top = st.columns([4, 1])
-            with top[0]:
-                st.markdown(f"### {trait['name']}")
-                st.markdown(f"**{label}**　— {desc}")
-            with top[1]:
-                st.markdown(f"#### {trajectory_sparkline(trait['trajectory'])}")
+            st.markdown(f"### {trait['name']}")
+            st.markdown(f"**{label}**　— {desc}")
+            st.markdown(f"**軌跡**：{trajectory_sparkline(trait['trajectory'])}")
             st.write(trait["summary"])
             with st.expander("この持ち味が育ってきた軌跡を見る"):
                 st.markdown(trajectory_table(trait["trajectory"]))
@@ -142,7 +143,7 @@ elif st.session_state.step == 4:
     name = st.session_state.selected
     shared = [t for t in st.session_state.traits if st.session_state.share_flags.get(t["name"])]
     st.header("面談用のたたき台")
-    st.caption("これは評価シートではありません。上長との対話の出発点として使ってください。")
+    st.caption("上長との対話の出発点です。あなたが選んだ持ち味だけが載っています。")
 
     if not shared:
         st.warning("共有する持ち味が選ばれていません。前の画面で選び直してください。")

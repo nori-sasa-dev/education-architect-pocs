@@ -56,8 +56,8 @@ SYSTEM_PROMPT = """あなたは「持ち味の発見者」です。
 ```
 """
 
-# APIキー未設定時のデモ応答（佐々木 亮 向けの固定3カード）
-DEMO_TRAITS_TEXT = """佐々木さんの4期分のシートを時系列で読み解きました。
+# APIキー未設定時のデモ応答（社員別の固定カード）
+DEMO_TRAITS_SASAKI = """佐々木さんの4期分のシートを時系列で読み解きました。
 点では見えにくい、けれど一本の線として確かに通っている持ち味が見えてきました。
 
 [TRAITS_EXTRACTED]
@@ -107,6 +107,61 @@ DEMO_TRAITS_TEXT = """佐々木さんの4期分のシートを時系列で読み
 }
 ```"""
 
+DEMO_TRAITS_INOUE = """井上さんの4期分のシートを時系列で読み解きました。
+控えめに見えて、地道な積み重ねが確かな線になって表れています。
+
+[TRAITS_EXTRACTED]
+```json
+{
+  "employee_name": "井上 さやか",
+  "traits": [
+    {
+      "name": "曖昧さを放置せず、根気よく真因にたどり着く探究心",
+      "type": "核",
+      "summary": "仕様や不具合の曖昧な点を、自分が納得するまで掘り下げて突き止める持ち味。期を通じて一貫している。",
+      "trajectory": [
+        {"period": "2024上期", "evidence": "仕様の曖昧な点を放置せず細かく確認し、想定外ケースで重要な不具合を発見した", "strength": "中"},
+        {"period": "2024下期", "evidence": "曖昧なユーザー報告から根気よく再現条件を特定した", "strength": "濃"},
+        {"period": "2025上期", "evidence": "過去の不具合データを丁寧に読み解き共通パターンを抽出した", "strength": "濃"},
+        {"period": "2025下期", "evidence": "深く理解した品質の領域では堂々と質問に答えていた", "strength": "濃"}
+      ],
+      "environment": "原因が見えにくく、地道な調査・分析が求められる場面。",
+      "talking_point": "とことん突き止めたくなるのは、どんなときに一番わいてきますか？"
+    },
+    {
+      "name": "地道な分析を、人に伝わる形に変えていく力",
+      "type": "芽",
+      "summary": "自分の中の理解を、チェックリストや説明会という『他者が使える形』に変換する力が期を追って育っている。",
+      "trajectory": [
+        {"period": "2024上期", "evidence": "調査は丁寧だが、成果を外に発信する場面はまだ少なかった", "strength": "薄"},
+        {"period": "2024下期", "evidence": "調査メモが『誰が読んでも分かる』と好評だった", "strength": "薄"},
+        {"period": "2025上期", "evidence": "不具合分析をチェックリスト化し、レビューでも具体的に指摘し始めた", "strength": "中"},
+        {"period": "2025下期", "evidence": "成果を他チームへ説明会で横展開し、品質向上に寄与した", "strength": "濃"}
+      ],
+      "environment": "自分が深く理解したことを、人やチームに渡す場面。",
+      "talking_point": "自分の分析が人に伝わって役立った瞬間、どんな気持ちでしたか？"
+    },
+    {
+      "name": "想定外を先回りして見つける品質の目",
+      "type": "状況依存",
+      "summary": "『この入力ならどうなるか』と人が見落とすケースを先回りで拾う持ち味。テスト・品質の局面で際立つ。",
+      "trajectory": [
+        {"period": "2024上期", "evidence": "想定外ケースを多く挙げ、重要な不具合を事前に発見した", "strength": "濃"},
+        {"period": "2025上期", "evidence": "抜けやすいテスト観点を洗い出しチェックリスト化した", "strength": "濃"}
+      ],
+      "environment": "テスト設計・品質改善など、抜け漏れの予見が価値になる場面。",
+      "talking_point": "人が見落としがちな点に気づけるこの目を、次はどこで活かしてみたいですか？"
+    }
+  ]
+}
+```"""
+
+# 社員名 → デモ応答の対応表（実APIモードでは使わない）
+DEMO_TRAITS_BY_NAME = {
+    "佐々木 亮": DEMO_TRAITS_SASAKI,
+    "井上 さやか": DEMO_TRAITS_INOUE,
+}
+
 
 class TraceAgent:
     def __init__(self, api_key=None):
@@ -123,7 +178,8 @@ class TraceAgent:
     def analyze(self, employee: dict) -> str:
         """社員の複数期データを受け取り、点→線分析の結果テキストを返す。"""
         if self.is_demo_mode:
-            return DEMO_TRAITS_TEXT
+            # デモ時も選択した社員に対応する固定応答を返す（名前と中身の不一致を防ぐ）
+            return DEMO_TRAITS_BY_NAME.get(employee["employee_name"], DEMO_TRAITS_SASAKI)
         return self._api_analyze(employee)
 
     def _api_analyze(self, employee: dict) -> str:

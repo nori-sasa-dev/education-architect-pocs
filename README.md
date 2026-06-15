@@ -24,7 +24,7 @@
 | ⑪ | [Safari Bookmark Organizer](pocs/safari_bookmark_organizer/) | SafariのブックマークをClaudeが自動でカテゴリ分類し、整理済みHTMLで書き出すアプリ | Python / Streamlit / Claude API / plistlib |
 | ⑫ | [AIできる課？](pocs/ai_dekiru_ka/) | 業務のAI化可能性を診断し、削減時間・ロードマップ・実装ガイドを生成。チームダッシュボード・実装ステータス管理も対応 | Python / Streamlit / Claude API / SQLite / Plotly |
 | ⑬ | [Redmine Ticket AI](pocs/redmine_ticket_ai/) | Redmineチケットデータ（故障管理・課題管理・レビュー指摘）をベクトル検索＋AIで分析。類似故障検索・機能カルテ生成 | Python / Streamlit / Claude API / ChromaDB / SQLite |
-| ⑭ | [軌跡（Trace）](pocs/strength_trace/) | 過去複数期のシートを点→線で読み解き、核/芽/状況依存の「持ち味」をAIが発見。評価でなく承認の道具として設計したHRテックPOC | Python / Streamlit / Claude API |
+| ⑭ | [マイ・ストレングス（My Strengths）](pocs/strength_trace/) | 過去複数期のシートを点→線で読み解き、ぶれない/伸びる/ここぞの「持ち味」をAIが発見。評価でなく承認の道具として設計したHRテックPOC | Python / Streamlit / Claude API |
 
 ---
 

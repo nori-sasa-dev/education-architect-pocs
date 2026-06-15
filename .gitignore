@@ -4,6 +4,17 @@ CLAUDE.md
 planning/sessions/
 planning/validation/
 
+# 個人文書・WIP（公開ポートフォリオに含めない）
+planning/
+docs/
+note_drafts/
+products/
+playground/
+
+# 依存パッケージ・重量バイナリ（公開しない）
+node_modules/
+*.pptx
+
 # 仮想環境
 venv/
 .venv/

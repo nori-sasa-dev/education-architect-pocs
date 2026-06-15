@@ -1,8 +1,8 @@
-# Education Architect POCs
+# Human Potential Unlocker POCs
 
 **教育 × コーチング × AI** の交差点でPOCアプリを開発するポートフォリオ。
 
-「Education Architect（教育アーキテクト）」として独立することを目指し、
+「Human Potential Unlocker」として独立することを目指し、
 アイデアの検証・技術習得・ポートフォリオ構築を目的として開発しています。
 
 ---
@@ -25,6 +25,8 @@
 | ⑫ | [AIできる課？](pocs/ai_dekiru_ka/) | 業務のAI化可能性を診断し、削減時間・ロードマップ・実装ガイドを生成。チームダッシュボード・実装ステータス管理も対応 | Python / Streamlit / Claude API / SQLite / Plotly |
 | ⑬ | [Redmine Ticket AI](pocs/redmine_ticket_ai/) | Redmineチケットデータ（故障管理・課題管理・レビュー指摘）をベクトル検索＋AIで分析。類似故障検索・機能カルテ生成 | Python / Streamlit / Claude API / ChromaDB / SQLite |
 | ⑭ | [マイ・ストレングス（My Strengths）](pocs/strength_trace/) | 過去複数期のシートを点→線で読み解き、ぶれない/伸びる/ここぞの「持ち味」をAIが発見。評価でなく承認の道具として設計したHRテックPOC | Python / Streamlit / Claude API |
+| ⑮ | [テニス・クイックコーチ](pocs/tennis_quick_coach/) | 試合状況を入力すると、即時に戦術アドバイスを返すアプリ | Python / Streamlit / Claude API |
+| ⑯ | [Courtside](pocs/courtside/) | 練習前の「問いかけ」で選手自身の気づき・自己決定を促すGROWcoaching型アプリ | Python / Streamlit / Claude API |
 
 ---
 
@@ -32,7 +34,7 @@
 
 - **言語**: Python 3.12
 - **UI**: Streamlit
-- **AI**: Claude API（`claude-sonnet-4-6` / `claude-opus-4-6`）
+- **AI**: Claude API（`claude-opus-4-8` / `claude-sonnet-4-6`）
 - **画像生成**: DALL-E 3（OpenAI）
 - **音声合成**: ElevenLabs
 - **音声入力**: Whisper（OpenAI）
@@ -64,7 +66,7 @@ streamlit run app.py
 
 ## 作者
 
-**Nori Sasagawa** — Education Architect を目指して開発中。
+**Nori Sasagawa** — Human Potential Unlocker を目指して開発中。
 
 教育 × コーチング × AI の掛け合わせで、学びの体験を再設計することがビジョンです。
 

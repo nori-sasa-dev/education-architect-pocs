@@ -1,8 +1,8 @@
 # Hi, I'm Nori 👋
 
-## AI × Education Builder
+## AI × Education × Coaching Builder
 
-**Education Architect を目指して、教育 × コーチング × AI の交差点でPOCを作り続けています。**
+**Human Potential Unlocker を目指して、教育 × コーチング × AI の交差点でPOCを作り続けています。**
 
 2033年の独立を目指してポートフォリオを積み上げ中。
 
@@ -39,7 +39,7 @@
 2026  ──  教育 × コーチング × AI のPOCポートフォリオを構築中
 2027  ──  副業・フリーランス案件を獲得
 2030  ──  専門家として独立準備
-2033  ──  Education Architect として独立
+2033  ──  Human Potential Unlocker として独立
 ```
 
 ---
